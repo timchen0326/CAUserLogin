@@ -20,17 +20,17 @@ import use_case.signup.SignupUserDataAccessInterface;
  * DAO for user data implemented using a File to persist the data.
  */
 public class FileUserDataAccessObject implements SignupUserDataAccessInterface,
-                                                 LoginUserDataAccessInterface,
-                                                 ChangePasswordUserDataAccessInterface {
+        LoginUserDataAccessInterface,
+        ChangePasswordUserDataAccessInterface {
 
     private static final String HEADER = "username,password";
+    private String currentUser;
 
     private final File csvFile;
     private final Map<String, Integer> headers = new LinkedHashMap<>();
     private final Map<String, User> accounts = new HashMap<>();
 
     public FileUserDataAccessObject(String csvPath, UserFactory userFactory) throws IOException {
-
         csvFile = new File(csvPath);
         headers.put("username", 0);
         headers.put("password", 1);
@@ -39,10 +39,8 @@ public class FileUserDataAccessObject implements SignupUserDataAccessInterface,
             save();
         }
         else {
-
             try (BufferedReader reader = new BufferedReader(new FileReader(csvFile))) {
                 final String header = reader.readLine();
-
                 if (!header.equals(HEADER)) {
                     throw new RuntimeException(String.format("header should be%n: %s%but was:%n%s", HEADER, header));
                 }
@@ -60,21 +58,14 @@ public class FileUserDataAccessObject implements SignupUserDataAccessInterface,
     }
 
     private void save() {
-        final BufferedWriter writer;
-        try {
-            writer = new BufferedWriter(new FileWriter(csvFile));
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(csvFile))) {
             writer.write(String.join(",", headers.keySet()));
             writer.newLine();
-
             for (User user : accounts.values()) {
-                final String line = String.format("%s,%s",
-                        user.getName(), user.getPassword());
+                final String line = String.format("%s,%s", user.getName(), user.getPassword());
                 writer.write(line);
                 writer.newLine();
             }
-
-            writer.close();
-
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -93,13 +84,22 @@ public class FileUserDataAccessObject implements SignupUserDataAccessInterface,
     }
 
     @Override
+    public void setCurrentUser(String username) {
+        this.currentUser = username;
+    }
+
+    @Override
+    public String getCurrentUser() {
+        return this.currentUser;
+    }
+
+    @Override
     public boolean existsByName(String identifier) {
         return accounts.containsKey(identifier);
     }
 
     @Override
     public void changePassword(User user) {
-        // Replace the User object in the map
         accounts.put(user.getName(), user);
         save();
     }
